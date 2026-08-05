@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JS-CodeCAD Pro — Arch Aware / FPS Export</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/GLTFExporter.js"></script>
+    <style>
+        /* ─── DESIGN SYSTEM V_005 — VIBRANT POP ART ─── */
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+        :root{
+            --gen-bg:#000000;--gen-surface:#121212;--gen-border:#262626;
+            --gen-primary:#0046d9;--gen-accent:#016dff;--gen-muted:#016dff;
+            --gen-fg:#e3e3e3;--gen-muted-fg:#727272;
+            --gen-font:'Space Grotesk', sans-serif;
+            --gen-mono:'Share Tech Mono', monospace;
+            --gen-clip:none;--gen-btn-clip:none;
+            --gen-shadow:3px 3px 0 #000, 6px 6px 0 var(--gen-primary);
+        }
+        html,body{height:100%;width:100%;overflow:hidden}
+        body{
+            background:var(--gen-bg);color:var(--gen-fg);
+            font-family:var(--gen-font);
+            display:flex;flex-direction:column;
+        }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--gen-bg); }
+        ::-webkit-scrollbar-thumb { background: var(--gen-border); }
+        ::-webkit-scrollbar-thumb:hover { background: var(--gen-primary); }
+
+        /* Header */
+        .ds-header{
+            padding:14px 20px;background:var(--gen-surface);
+            border-bottom:1px solid var(--gen-border);
+            display:flex;justify-content:space-between;align-items:center;
+            position:relative;overflow:hidden;z-index:30;
+        }
+        .ds-header::before{
+            content:'';position:absolute;inset:0;pointer-events:none;opacity:.08;
+            background-image:repeating-linear-gradient(0deg, var(--gen-primary) 0 1px, transparent 1px 4px);
+        }
+        .brand{display:flex;align-items:center;gap:12px;position:relative;z-index:1}
+        .brand-mark{
+            width:36px;height:36px;background:var(--gen-primary);
+            display:grid;place-items:center;color:var(--gen-bg);
+            box-shadow:var(--gen-shadow);
+        }
+        .brand-title{
+            font-size:1.05rem;font-weight:700;letter-spacing:.04em;
+            color:var(--gen-primary);text-transform:uppercase;
+        }
+        .brand-title span{color:var(--gen-accent);font-style:italic}
+        .brand-sub{
+            font-size:.62rem;color:var(--gen-muted-fg);
+            font-family:var(--gen-mono);letter-spacing:.12em;margin-top:2px;
+        }
+        .header-actions{display:flex;gap:8px;position:relative;z-index:1;flex-wrap:wrap}
+
+        /* Buttons — CNC milled */
+        .btn{
+            display:inline-flex;align-items:center;gap:6px;justify-content:center;
+            padding:8px 16px;font-size:.72rem;font-weight:600;letter-spacing:.06em;
+            font-family:var(--gen-font);text-transform:uppercase;
+            cursor:pointer;border:none;color:var(--gen-bg);
+            background:var(--gen-primary);transition:box-shadow .2s,opacity .2s;
+            clip-path:var(--gen-btn-clip);
+        }
+        .btn:hover:not(:disabled){opacity:.9;box-shadow:var(--gen-shadow)}
+        .btn:disabled{opacity:.4;cursor:not-allowed}
+        .btn-secondary{background:transparent;color:var(--gen-primary);border:1px solid var(--gen-primary)}
+        .btn-accent{background:var(--gen-accent);color:var(--gen-bg)}
+        .btn-ghost{background:transparent;color:var(--gen-muted-fg);border:1px solid var(--gen-border)}
+        .btn-danger{background:#dc2626;color:#fff}
+        .btn-sm{padding:5px 10px;font-size:.62rem}
+
+        /* Main workspace */
+        main{flex:1;display:flex;overflow:hidden}
+        @media (max-width:900px){ main{flex-direction:column} }
+
+        /* Editor pane */
+        .pane-editor{
+            width:520px;max-width:55%;
+            display:flex;flex-direction:column;
+            background:var(--gen-surface);border-right:1px solid var(--gen-border);
+        }
+        @media (max-width:900px){ .pane-editor{width:100%;max-width:none;height:50%;border-right:none;border-bottom:1px solid var(--gen-border)} }
+
+        .ai-bar{
+            padding:10px;background:var(--gen-bg);
+            border-bottom:1px solid var(--gen-border);
+            display:flex;flex-direction:column;gap:8px;
+        }
+        .ai-row{display:flex;gap:6px}
+        .ai-input{
+            flex:1;background:var(--gen-surface);color:var(--gen-fg);
+            border:1px solid var(--gen-border);padding:8px 12px;
+            font-size:.78rem;font-family:var(--gen-font);outline:none;
+        }
+        .ai-input:focus{border-color:var(--gen-primary);box-shadow:0 0 0 2px color-mix(in srgb,var(--gen-primary) 20%,transparent)}
+        .ai-select{
+            background:var(--gen-surface);color:var(--gen-primary);
+            border:1px solid var(--gen-border);padding:8px;
+            font-size:.65rem;font-family:var(--gen-mono);outline:none;letter-spacing:.08em;
+        }
+        .presets{display:flex;gap:6px;flex-wrap:wrap}
+        .preset{
+            font-size:.6rem;font-family:var(--gen-mono);letter-spacing:.1em;
+            background:transparent;color:var(--gen-muted-fg);
+            border:1px solid var(--gen-border);padding:4px 10px;cursor:pointer;
+            transition:all .15s;
+        }
+        .preset:hover{color:var(--gen-primary);border-color:var(--gen-primary)}
+
+        /* Editor */
+        #editor-container{flex:1;display:flex;overflow:hidden;background:var(--gen-bg)}
+        #line-numbers{
+            width:42px;padding:12px 6px 12px 0;background:var(--gen-surface);
+            border-right:1px solid var(--gen-border);flex-shrink:0;
+            font-family:var(--gen-mono);font-size:.7rem;text-align:right;
+            color:var(--gen-muted-fg);line-height:1.55rem;user-select:none;
+            overflow:hidden;
+        }
+        #editor{
+            flex:1;background:transparent;color:var(--gen-fg);
+            border:none;outline:none;resize:none;padding:12px;
+            font-family:var(--gen-mono);font-size:.78rem;line-height:1.55rem;
+            tab-size:4;white-space:pre;overflow:auto;
+        }
+
+        .toolbar{
+            padding:8px 12px;background:var(--gen-surface);
+            border-top:1px solid var(--gen-border);
+            display:flex;justify-content:space-between;align-items:center;gap:8px;
+            font-family:var(--gen-mono);font-size:.62rem;letter-spacing:.08em;
+            color:var(--gen-muted-fg);
+        }
+        .toolbar label{display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--gen-muted-fg)}
+        .toolbar input[type=checkbox]{accent-color:var(--gen-primary)}
+        .status-tag{
+            padding:2px 8px;font-family:var(--gen-mono);font-size:.6rem;
+            letter-spacing:.1em;border:1px solid;
+        }
+        .status-ok{color:#22c55e;border-color:color-mix(in srgb,#22c55e 45%,transparent);background:color-mix(in srgb,#22c55e 12%,transparent)}
+        .status-err{color:#ef4444;border-color:color-mix(in srgb,#ef4444 45%,transparent);background:color-mix(in srgb,#ef4444 12%,transparent)}
+        .status-busy{color:var(--gen-accent);border-color:color-mix(in srgb,var(--gen-accent) 45%,transparent);background:color-mix(in srgb,var(--gen-accent) 12%,transparent)}
+
+        #error-console{
+            display:none;background:color-mix(in srgb,#ef4444 10%,transparent);
+            border-top:1px solid color-mix(in srgb,#ef4444 40%,transparent);
+            color:#f87171;padding:10px 12px;font-family:var(--gen-mono);
+            font-size:.7rem;max-height:120px;overflow:auto;white-space:pre-wrap;
+        }
+
+        /* Viewport */
+        .pane-viewport{flex:1;position:relative;background:var(--gen-bg);overflow:hidden}
+        .pane-viewport::before{
+            content:'';position:absolute;inset:0;pointer-events:none;opacity:.04;z-index:1;
+            background-image:repeating-linear-gradient(0deg, var(--gen-primary) 0 1px, transparent 1px 4px);
+        }
+        .v-overlay{
+            position:absolute;top:12px;left:12px;z-index:10;
+            display:flex;flex-direction:column;gap:8px;
+        }
+        .v-stats{
+            background:color-mix(in srgb,var(--gen-surface) 85%,transparent);
+            border:1px solid var(--gen-border);padding:8px 10px;
+            font-family:var(--gen-mono);font-size:.62rem;letter-spacing:.08em;
+            color:var(--gen-muted-fg);min-width:150px;
+            backdrop-filter:blur(6px);
+        }
+        .v-stats .row{display:flex;justify-content:space-between;gap:12px}
+        .v-stats .row span:last-child{color:var(--gen-primary)}
+        .v-btns{display:flex;gap:4px}
+        .v-btn{
+            background:color-mix(in srgb,var(--gen-surface) 85%,transparent);
+            border:1px solid var(--gen-border);padding:6px;color:var(--gen-fg);
+            cursor:pointer;backdrop-filter:blur(6px);
+        }
+        .v-btn:hover{border-color:var(--gen-primary);color:var(--gen-primary)}
+        .v-badge-tl{
+            position:absolute;top:12px;right:12px;z-index:10;
+            font-family:var(--gen-mono);font-size:.58rem;letter-spacing:.14em;
+            color:var(--gen-primary);border:1px solid var(--gen-primary);
+            padding:3px 10px;opacity:.7;
+            background:color-mix(in srgb,var(--gen-surface) 60%,transparent);
+        }
+
+        /* Modal (Export FPS) */
+        .modal-back{
+            position:fixed;inset:0;z-index:100;
+            background:color-mix(in srgb,#000 75%,transparent);
+            display:none;align-items:center;justify-content:center;
+            backdrop-filter:blur(4px);padding:20px;
+        }
+        .modal-back.show{display:flex}
+        .modal{
+            width:min(560px,100%);background:var(--gen-surface);
+            border:1px solid var(--gen-primary);
+            box-shadow:var(--gen-shadow);
+            padding:22px;position:relative;overflow:hidden;
+        }
+        .modal::before{
+            content:'';position:absolute;inset:0;pointer-events:none;opacity:.06;
+            background-image:repeating-linear-gradient(0deg, var(--gen-primary) 0 1px, transparent 1px 4px);
+        }
+        .modal-inner{position:relative;z-index:1}
+        .modal-title{
+            font-size:.95rem;font-weight:700;color:var(--gen-primary);
+            letter-spacing:.04em;text-transform:uppercase;margin-bottom:4px;
+        }
+        .modal-sub{font-family:var(--gen-mono);font-size:.62rem;color:var(--gen-muted-fg);letter-spacing:.1em;margin-bottom:16px}
+        .form-group{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+        .form-label{font-family:var(--gen-mono);font-size:.6rem;letter-spacing:.1em;color:var(--gen-muted-fg)}
+        .form-input{
+            background:var(--gen-bg);color:var(--gen-fg);border:1px solid var(--gen-border);
+            padding:8px 12px;font-size:.8rem;font-family:var(--gen-font);outline:none;width:100%;
+        }
+        .form-input:focus{border-color:var(--gen-primary)}
+        .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+        .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+        .close-x{
+            position:absolute;top:10px;right:10px;background:none;border:none;
+            color:var(--gen-muted-fg);cursor:pointer;font-size:1.1rem;z-index:2;
+        }
+        .close-x:hover{color:var(--gen-primary)}
+        .chk-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:.75rem;color:var(--gen-fg)}
+        .chk-row input{accent-color:var(--gen-primary);width:14px;height:14px}
+    </style>
+</head>
+<body>
+
+    <!-- ── HEADER ── -->
+    <header class="ds-header">
+        <div class="brand">
+            <div class="brand-mark">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+            </div>
+            <div>
+                <div class="brand-title">JS-CodeCAD <span>Pro</span></div>
+                <div class="brand-sub">V_006 // ARCH-AWARE // FPS-EXPORT</div>
+            </div>
+        </div>
+
+        <div class="header-actions">
+            <button id="btn-export-fps" class="btn btn-accent">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 4l14 8-14 8V4z"/></svg>
+                FPS ANDROID
+            </button>
+            <button id="btn-export" class="btn btn-secondary">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                GLTF
+            </button>
+            <button id="btn-compile" class="btn">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                BUILD
+            </button>
+        </div>
+    </header>
+
+    <!-- ── MAIN ── -->
+    <main>
+        <!-- Editor -->
+        <section class="pane-editor">
+            <div class="ai-bar">
+                <div class="ai-row">
+                    <select id="ai-model-select" class="ai-select">
+                        <option value="gemini-3-flash-preview">GEMINI-3-FLASH</option>
+                    </select>
+                    <input type="text" id="ai-prompt" class="ai-input" placeholder="e.g. 'Brutalist tower with cantilever' or 'roman aqueduct'">
+                    <button id="btn-ai-gen" class="btn btn-accent btn-sm"><span id="ai-btn-text">GENERATE</span></button>
+                </div>
+                <div class="presets">
+                    <button class="preset" data-prompt="A 3-story modernist house with load-bearing columns, cantilevered balcony, and a flat roof">MODERNIST HOUSE</button>
+                    <button class="preset" data-prompt="A gothic cathedral facade with pointed arches, flying buttresses, and rose window">CATHEDRAL</button>
+                    <button class="preset" data-prompt="A brutalist tower with structural grid and recessed windows">BRUTALIST TOWER</button>
+                    <button class="preset" data-prompt="A japanese pagoda with tiered eaves and central mast">PAGODA</button>
+                    <button class="preset" data-prompt="A cyberpunk street corner with a shop, neon signs and vertical piping">CYBERPUNK ST.</button>
+                </div>
+            </div>
+
+            <div id="editor-container">
+                <div id="line-numbers"></div>
+                <textarea id="editor" spellcheck="false"></textarea>
+            </div>
+
+            <div class="toolbar">
+                <div style="display:flex;gap:14px;align-items:center">
+                    <label><input type="checkbox" id="auto-compile" checked> AUTO_BUILD</label>
+                    <span id="status-tag" class="status-tag status-ok">READY</span>
+                </div>
+                <div id="char-count">0 CHARS</div>
+            </div>
+
+            <div id="error-console"></div>
+        </section>
+
+        <!-- Viewport -->
+        <section class="pane-viewport" id="viewport-container">
+            <div class="v-overlay">
+                <div class="v-stats">
+                    <div class="row"><span>VERTICES</span><span id="stat-verts">0</span></div>
+                    <div class="row"><span>TRIANGLES</span><span id="stat-tris">0</span></div>
+                    <div class="row"><span>MESHES</span><span id="stat-meshes">0</span></div>
+                    <div class="row"><span>BOUNDS_Y</span><span id="stat-height">0</span></div>
+                </div>
+                <div class="v-btns">
+                    <button id="toggle-grid" class="v-btn" title="Grid">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+                    </button>
+                    <button id="toggle-wireframe" class="v-btn" title="Wireframe">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l10 10-10 10-10-10z"/></svg>
+                    </button>
+                    <button id="reset-camera" class="v-btn" title="Reset">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="v-badge-tl">HYPERCORE_V2 // SCENE_LIVE</div>
+        </section>
+    </main>
+
+    <!-- ── FPS EXPORT MODAL ── -->
+    <div class="modal-back" id="fps-modal">
+        <div class="modal">
+            <button class="close-x" id="fps-close">✕</button>
+            <div class="modal-inner">
+                <div class="modal-title">Export FPS Playable Scene</div>
+                <div class="modal-sub">// SELF-CONTAINED HTML // ANDROID_TOUCH_READY // WEBGL</div>
+
+                <div class="form-group">
+                    <label class="form-label">SCENE_TITLE</label>
+                    <input type="text" id="fps-title" class="form-input" value="MyScene">
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">PLAYER_HEIGHT</label>
+                        <input type="number" id="fps-height" class="form-input" value="1.7" step="0.1" min="0.5" max="5">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">MOVE_SPEED</label>
+                        <input type="number" id="fps-speed" class="form-input" value="4.5" step="0.5" min="1" max="20">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">GRAVITY</label>
+                        <input type="number" id="fps-gravity" class="form-input" value="20" step="1" min="0" max="80">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">JUMP_VELOCITY</label>
+                        <input type="number" id="fps-jump" class="form-input" value="7" step="0.5" min="0" max="20">
+                    </div>
+                </div>
+
+                <div class="chk-row"><input type="checkbox" id="fps-collision" checked> Enable mesh collision (AABB)</div>
+                <div class="chk-row"><input type="checkbox" id="fps-shadows" checked> Enable shadows (mobile-optimized)</div>
+                <div class="chk-row"><input type="checkbox" id="fps-fog"> Atmospheric fog</div>
+
+                <div class="modal-actions">
+                    <button class="btn btn-ghost btn-sm" id="fps-cancel">CANCEL</button>
+                    <button class="btn btn-accent" id="fps-build">BUILD .HTML</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+/* ─────────────────────────────────────────────────────────────
+   JS-CodeCAD Pro — V_006
+   ─ Original CAD engine (preserved, unchanged behavior)
+   ─ Design System V_005 (Vibrant Pop Art) applied
+   ─ AI system prompt upgraded → ARCHITECTURAL AWARENESS
+   ─ Export FPS-playable Android HTML added
+   ────────────────────────────────────────────────────────────*/
+
+// API Config (original)
+const apiKey = "AQ.Ab8RN6Iqr_ioTaStScJkHqxoeeReTbe2aNlZ4BfYt29wfo5ZRw";
+
+// Global State
+let scene, camera, renderer, controls, gridHelper, userModelGroup;
+let wireframeMode = false;
+let debounceTimer;
+
+const defaultCode = `// JS-CodeCAD — Architectural sample
+// Small pavilion: slab + 4 columns + roof + railings.
+// Return a THREE.Group. Units are meters (Y = up).
+const group = new THREE.Group();
+
+const concrete = new THREE.MeshStandardMaterial({ color:0xb8b8b8, roughness:0.85, metalness:0.05 });
+const steel    = new THREE.MeshStandardMaterial({ color:0x2b2b2b, roughness:0.4,  metalness:0.9 });
+const glass    = new THREE.MeshStandardMaterial({ color:0x88b8ff, roughness:0.1,  metalness:0.2, transparent:true, opacity:0.35 });
+
+// ── Slab (foundation) ──
+const slab = new THREE.Mesh(new THREE.BoxGeometry(10, 0.3, 8), concrete);
+slab.position.y = 0.15;
+group.add(slab);
+
+// ── 4 columns ──
+const colGeo = new THREE.CylinderGeometry(0.2, 0.2, 3.2, 16);
+[[-4.5,-3.5],[4.5,-3.5],[-4.5,3.5],[4.5,3.5]].forEach(([x,z])=>{
+    const c = new THREE.Mesh(colGeo, steel);
+    c.position.set(x, 0.3 + 1.6, z);
+    group.add(c);
+});
+
+// ── Roof slab ──
+const roof = new THREE.Mesh(new THREE.BoxGeometry(11, 0.25, 9), concrete);
+roof.position.y = 3.2 + 0.3 + 0.125;
+group.add(roof);
+
+// ── Glass infill ──
+const infill = new THREE.Mesh(new THREE.BoxGeometry(9, 2.8, 0.1), glass);
+infill.position.set(0, 0.3 + 1.4, -3.9);
+group.add(infill);
+
+return group;`;
+
+/* ─── ARCHITECTURAL AI SYSTEM PROMPT ───
+   Massively upgraded for spatial + structural awareness. */
+const ARCH_SYSTEM_PROMPT = `You are an EXPERT COMPUTATIONAL ARCHITECT and Three.js coder.
+You output ONLY executable JavaScript. No markdown, no prose, no code fences.
+The code runs inside \`new Function('THREE', code)\` and MUST end with \`return <THREE.Object3D>;\`.
+
+──────────────────────────────────────────────
+ARCHITECTURAL AWARENESS — YOU MUST REASON ABOUT:
+
+1. SITE & GROUND PLANE
+   • Y = up. Nothing goes below y = 0 unless it's a foundation/basement.
+   • Rest the primary mass on the ground; keep the model near the world origin.
+   • Overall model roughly fits in a 20×20×20 m box unless the prompt says otherwise.
+
+2. HUMAN SCALE (units = meters)
+   • Floor-to-floor height ≈ 3.0–3.6 m.
+   • Door ≈ 0.9 × 2.1 m. Window sill ≈ 0.9 m. Rail ≈ 1.0–1.1 m.
+   • Corridor ≥ 1.2 m wide. Stair riser ≈ 0.17 m, tread ≈ 0.28 m.
+   • Column spans typically 4–9 m for concrete/steel.
+
+3. STRUCTURAL HIERARCHY (build in order)
+   FOUNDATION → COLUMNS/WALLS (vertical load) → BEAMS/SLABS (horizontal) →
+   ENVELOPE (walls, glazing) → SECONDARY (railings, mullions, ornaments) → ROOF → SITE.
+   Every horizontal element MUST rest on something (a wall/column/slab below).
+   Beams span between supports; slabs sit ON beams; columns land ON slabs/footings.
+
+4. TECTONIC ASSEMBLY (parts, not one blob)
+   • Use MANY small named meshes (\`slab\`, \`col_NE\`, \`beam_S\`, \`window_L2_1\`), grouped logically.
+   • Prefer THREE.Group() sub-groups per floor / per elevation.
+   • Never model an entire building as a single Box.
+
+5. RHYTHM & REPETITION
+   • Use for-loops for repeated bays, columns, windows, treads, balusters.
+   • Keep bay spacing constant on each elevation.
+
+6. MATERIAL SEMANTICS (MeshStandardMaterial only)
+   concrete: color 0xb8b8b8, roughness 0.85, metalness 0.05
+   steel   : color 0x2b2b2b, roughness 0.4,  metalness 0.9
+   glass   : color 0x88b8ff, roughness 0.1,  metalness 0.2, transparent true, opacity 0.3
+   wood    : color 0x8b5a2b, roughness 0.7
+   brick   : color 0xa0522d, roughness 0.9
+   stone   : color 0x9a8f80, roughness 0.9
+   roof    : color 0x3a3a3a, roughness 0.7
+   Reuse a material variable across many meshes (don't recreate per instance).
+
+7. STYLE VOCABULARY (respect the requested style)
+   modernist → flat roofs, ribbon windows, pilotis, cantilever, white/grey.
+   brutalist → exposed concrete, deep reveals, heavy grid.
+   gothic    → pointed arches, ribbed verticality, buttresses, rose window.
+   classical → symmetry, entablature, columns w/ base+capital, pediment.
+   japanese  → tiered eaves, timber posts, low horizontal massing.
+   industrial→ steel trusses, corrugated cladding, exposed ducts.
+   cyberpunk → dense signage boxes, cantilevered volumes, vertical pipes, glow (emissive).
+
+8. FPS/GAME-READINESS (this is critical — the scene may be exported to a walkable FPS build)
+   • Prefer BUFFER geometries the FPS collision system understands: Box, Cylinder, Plane, Cone, Sphere, ExtrudeGeometry.
+   • Keep walls SOLID, thickness ≥ 0.1 m — no zero-thickness planes for walls.
+   • Leave floor at y ≈ 0 clear enough for a 1.7 m tall player to walk on.
+   • Never place massive meshes at (0,1.7,0) — that's spawn.
+
+9. PERFORMANCE BUDGETS
+   • Total ≤ ~150 meshes, ≤ ~120k triangles.
+   • Cylinders radialSegments 12–16; spheres 16 × 12.
+
+10. OUTPUT CONTRACT (STRICT)
+   • NO import statements, NO markdown, NO backticks, NO comments explaining the design.
+   • Only JS body. THREE is global. First line may be \`const group = new THREE.Group();\`.
+   • Final line MUST be \`return group;\` (or the top-level object).
+   • Do NOT create renderer, camera, scene, controls, lights, or animation loop — the host provides them.
+   • Do NOT call requestAnimationFrame.
+   • Never reference DOM.
+
+REASON silently, then emit only the code.`;
+
+/* ─── INIT ─── */
+function init() {
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000000);
+
+    const viewport = document.getElementById('viewport-container');
+    camera = new THREE.PerspectiveCamera(50, viewport.clientWidth / viewport.clientHeight, 0.1, 1000);
+    camera.position.set(14, 12, 14);
+
+    renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
+    renderer.setSize(viewport.clientWidth, viewport.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    viewport.appendChild(renderer.domElement);
+
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.target.set(0, 2, 0);
+
+    // Lights
+    scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+    const mainLight = new THREE.DirectionalLight(0xffffff, 0.9);
+    mainLight.position.set(15, 25, 10);
+    mainLight.castShadow = true;
+    scene.add(mainLight);
+    const rim = new THREE.PointLight(0x016dff, 0.6);
+    rim.position.set(-12, -4, -12);
+    scene.add(rim);
+
+    gridHelper = new THREE.GridHelper(30, 30, 0x0046d9, 0x262626);
+    scene.add(gridHelper);
+
+    // Editor
+    const editor = document.getElementById('editor');
+    editor.value = defaultCode;
+    updateLineNumbers();
+    updateCharCount();
+
+    // Listeners
+    window.addEventListener('resize', onWindowResize);
+    editor.addEventListener('input', () => {
+        updateLineNumbers();
+        updateCharCount();
+        if (document.getElementById('auto-compile').checked) {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(compileAndRender, 800);
+        }
+    });
+    editor.addEventListener('keydown', handleTabKey);
+    editor.addEventListener('scroll', () => {
+        document.getElementById('line-numbers').scrollTop = editor.scrollTop;
+    });
+
+    document.getElementById('btn-compile').onclick = compileAndRender;
+    document.getElementById('btn-ai-gen').onclick  = generateCode;
+    document.getElementById('btn-export').onclick  = exportGLTF;
+    document.getElementById('btn-export-fps').onclick = () => document.getElementById('fps-modal').classList.add('show');
+    document.getElementById('fps-close').onclick  = closeFpsModal;
+    document.getElementById('fps-cancel').onclick = closeFpsModal;
+    document.getElementById('fps-build').onclick  = exportFpsHtml;
+
+    document.getElementById('toggle-grid').onclick = () => { gridHelper.visible = !gridHelper.visible; };
+    document.getElementById('toggle-wireframe').onclick = toggleWireframe;
+    document.getElementById('reset-camera').onclick = () => { controls.reset(); };
+
+    document.querySelectorAll('.preset').forEach(btn => {
+        btn.onclick = () => {
+            document.getElementById('ai-prompt').value = btn.dataset.prompt;
+            generateCode();
+        };
+    });
+
+    compileAndRender();
+    animate();
+}
+
+function closeFpsModal(){ document.getElementById('fps-modal').classList.remove('show'); }
+
+function updateLineNumbers() {
+    const lines = document.getElementById('editor').value.split('\n').length;
+    document.getElementById('line-numbers').innerHTML =
+        Array.from({ length: lines }, (_, i) => `<div>${i + 1}</div>`).join('');
+}
+function updateCharCount() {
+    document.getElementById('char-count').innerText =
+        `${document.getElementById('editor').value.length} CHARS`;
+}
+function handleTabKey(e) {
+    if (e.key === 'Tab') {
+        e.preventDefault();
+        const s = this.selectionStart, en = this.selectionEnd;
+        this.value = this.value.substring(0, s) + "    " + this.value.substring(en);
+        this.selectionStart = this.selectionEnd = s + 4;
+    }
+}
+
+function disposeSceneObject(obj) {
+    if (!obj) return;
+    obj.traverse(node => {
+        if (node.isMesh) {
+            node.geometry?.dispose();
+            if (Array.isArray(node.material)) node.material.forEach(m => m.dispose());
+            else node.material?.dispose();
+        }
+    });
+    scene.remove(obj);
+}
+
+function setStatus(text, cls){
+    const s = document.getElementById('status-tag');
+    s.textContent = text;
+    s.className = 'status-tag ' + cls;
+}
+
+function compileAndRender() {
+    const consoleEl = document.getElementById('error-console');
+    disposeSceneObject(userModelGroup);
+    consoleEl.style.display = 'none';
+    try {
+        const buildModel = new Function('THREE', document.getElementById('editor').value);
+        const result = buildModel(THREE);
+        if (result && result instanceof THREE.Object3D) {
+            userModelGroup = result;
+            userModelGroup.traverse(n => { if (n.isMesh) { n.castShadow = true; n.receiveShadow = true; } });
+            if (wireframeMode) applyWireframe(userModelGroup, true);
+            scene.add(userModelGroup);
+            setStatus('SUCCESS', 'status-ok');
+            updateStats();
+        } else {
+            throw new Error("Code must return a THREE.Object3D instance.");
+        }
+    } catch (err) {
+        setStatus('ERROR', 'status-err');
+        consoleEl.innerText = err.toString();
+        consoleEl.style.display = 'block';
+    }
+}
+
+function updateStats() {
+    let verts = 0, tris = 0, meshes = 0;
+    let box = new THREE.Box3();
+    if (userModelGroup) {
+        userModelGroup.traverse(n => {
+            if (n.isMesh && n.geometry) {
+                meshes++;
+                verts += n.geometry.attributes.position.count;
+                tris  += n.geometry.index
+                    ? n.geometry.index.count / 3
+                    : n.geometry.attributes.position.count / 3;
+            }
+        });
+        box.setFromObject(userModelGroup);
+    }
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    document.getElementById('stat-verts').innerText = Math.round(verts).toLocaleString();
+    document.getElementById('stat-tris').innerText  = Math.round(tris).toLocaleString();
+    document.getElementById('stat-meshes').innerText= meshes;
+    document.getElementById('stat-height').innerText= isFinite(size.y) ? size.y.toFixed(2)+'m' : '0';
+}
+
+function toggleWireframe() {
+    wireframeMode = !wireframeMode;
+    if (userModelGroup) applyWireframe(userModelGroup, wireframeMode);
+}
+function applyWireframe(obj, state) {
+    obj.traverse(n => { if (n.isMesh) n.material.wireframe = state; });
+}
+
+/* ─── AI GENERATION ─── */
+async function generateCode() {
+    const prompt = document.getElementById('ai-prompt').value.trim();
+    if (!prompt) return;
+
+    const btn = document.getElementById('btn-ai-gen');
+    const btnText = document.getElementById('ai-btn-text');
+    btn.disabled = true;
+    btnText.innerText = 'THINKING…';
+    setStatus('AI_GEN', 'status-busy');
+
+    const model = document.getElementById('ai-model-select').value;
+
+    try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: { parts: [{ text: ARCH_SYSTEM_PROMPT }] }
+            })
+        });
+        const data = await response.json();
+        if (data.error) throw new Error(data.error.message);
+
+        let code = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        code = code.replace(/```(?:javascript|js)?\n?/gi, '').replace(/```\n?/g, '').trim();
+
+        document.getElementById('editor').value = code;
+        updateLineNumbers();
+        updateCharCount();
+        compileAndRender();
+    } catch (err) {
+        const consoleEl = document.getElementById('error-console');
+        consoleEl.innerText = "AI Generation Error: " + err.message;
+        consoleEl.style.display = 'block';
+        setStatus('AI_ERR', 'status-err');
+    } finally {
+        btn.disabled = false;
+        btnText.innerText = 'GENERATE';
+    }
+}
+
+/* ─── GLTF EXPORT (original) ─── */
+function exportGLTF() {
+    if (!userModelGroup) return;
+    const exporter = new THREE.GLTFExporter();
+    exporter.parse(userModelGroup, gltf => {
+        const blob = new Blob([JSON.stringify(gltf, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'jscodecad-model.gltf';
+        document.body.appendChild(a); a.click();
+        document.body.removeChild(a); URL.revokeObjectURL(url);
+    }, err => {
+        const c = document.getElementById('error-console');
+        c.innerText = "Export Error: " + err.toString();
+        c.style.display = 'block';
+    });
+}
+
+/* ─── FPS-PLAYABLE HTML EXPORT (Android-ready) ─── */
+function exportFpsHtml(){
+    if (!userModelGroup) { alert('Build a model first.'); return; }
+    const exporter = new THREE.GLTFExporter();
+    exporter.parse(userModelGroup, (gltfJson) => {
+        const title    = document.getElementById('fps-title').value || 'Scene';
+        const pHeight  = parseFloat(document.getElementById('fps-height').value)  || 1.7;
+        const pSpeed   = parseFloat(document.getElementById('fps-speed').value)   || 4.5;
+        const gravity  = parseFloat(document.getElementById('fps-gravity').value) || 20;
+        const jumpV    = parseFloat(document.getElementById('fps-jump').value)    || 7;
+        const wantColl = document.getElementById('fps-collision').checked;
+        const wantSh   = document.getElementById('fps-shadows').checked;
+        const wantFog  = document.getElementById('fps-fog').checked;
+
+        const gltfStr = JSON.stringify(gltfJson);
+        const html = buildFpsHtml({ title, gltfStr, pHeight, pSpeed, gravity, jumpV, wantColl, wantSh, wantFog });
+
+        const blob = new Blob([html], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = (title.replace(/[^a-z0-9-_]+/gi,'_') || 'scene') + '_fps.html';
+        document.body.appendChild(a); a.click();
+        document.body.removeChild(a); URL.revokeObjectURL(url);
+        closeFpsModal();
+        setStatus('FPS_EXPORTED', 'status-ok');
+    }, err => {
+        const c = document.getElementById('error-console');
+        c.innerText = "FPS Export Error: " + err.toString();
+        c.style.display = 'block';
+    }, { binary: false, embedImages: true });
+}
+
+/* ─── Build the self-contained FPS HTML ─── */
+function buildFpsHtml(opts){
+    const { title, gltfStr, pHeight, pSpeed, gravity, jumpV, wantColl, wantSh, wantFog } = opts;
+
+    // Everything is inlined. Uses jsdelivr Three r128 + GLTFLoader (mobile-friendly, cached widely).
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#000000">
+<title>${escapeHtml(title)} — FPS</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;color:#e3e3e3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;overscroll-behavior:none;touch-action:none}
+canvas{display:block;position:absolute;inset:0}
+#hud{position:fixed;inset:0;pointer-events:none;z-index:10}
+.crosshair{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:18px;height:18px;pointer-events:none}
+.crosshair::before,.crosshair::after{content:'';position:absolute;background:#0046d9;box-shadow:0 0 6px #016dff}
+.crosshair::before{left:50%;top:0;transform:translateX(-50%);width:2px;height:100%}
+.crosshair::after{top:50%;left:0;transform:translateY(-50%);width:100%;height:2px}
+.stats{position:absolute;top:12px;left:12px;font-family:'Share Tech Mono',monospace;font-size:11px;color:#0046d9;background:rgba(18,18,18,.7);border:1px solid #262626;padding:6px 10px;letter-spacing:.08em;backdrop-filter:blur(6px)}
+.title{position:absolute;top:12px;right:12px;font-family:'Share Tech Mono',monospace;font-size:11px;color:#016dff;border:1px solid #016dff;padding:4px 10px;letter-spacing:.14em;background:rgba(18,18,18,.6);text-transform:uppercase}
+.stick{position:absolute;bottom:24px;width:130px;height:130px;pointer-events:auto;touch-action:none;border-radius:50%;background:rgba(0,70,217,.09);border:2px solid rgba(0,70,217,.4);backdrop-filter:blur(6px)}
+.stick-l{left:24px}
+.stick-r{right:24px;background:rgba(1,109,255,.09);border-color:rgba(1,109,255,.4)}
+.knob{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:56px;height:56px;border-radius:50%;background:#0046d9;box-shadow:3px 3px 0 #000, 5px 5px 0 rgba(1,109,255,.9)}
+.stick-r .knob{background:#016dff}
+.btn-jump{position:absolute;right:170px;bottom:60px;width:76px;height:76px;border-radius:50%;background:#016dff;color:#000;font-family:'Share Tech Mono',monospace;font-size:13px;font-weight:700;letter-spacing:.1em;border:none;pointer-events:auto;touch-action:none;box-shadow:3px 3px 0 #000, 5px 5px 0 #0046d9}
+.btn-jump:active{transform:translate(2px,2px);box-shadow:1px 1px 0 #000, 2px 2px 0 #0046d9}
+.overlay{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.85);backdrop-filter:blur(8px);pointer-events:auto}
+.overlay-card{background:#121212;border:1px solid #0046d9;padding:24px 28px;max-width:340px;text-align:center;box-shadow:3px 3px 0 #000, 6px 6px 0 #0046d9;position:relative;overflow:hidden}
+.overlay-card::before{content:'';position:absolute;inset:0;background-image:repeating-linear-gradient(0deg,#0046d9 0 1px,transparent 1px 4px);opacity:.08;pointer-events:none}
+.overlay h1{color:#0046d9;font-size:20px;letter-spacing:.06em;margin-bottom:6px;text-transform:uppercase;position:relative}
+.overlay p{color:#727272;font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:.1em;margin-bottom:14px;position:relative}
+.overlay ul{list-style:none;text-align:left;font-family:'Share Tech Mono',monospace;font-size:11px;color:#e3e3e3;margin-bottom:16px;position:relative}
+.overlay li{padding:3px 0;letter-spacing:.06em}
+.overlay li b{color:#016dff}
+.start-btn{background:#0046d9;color:#000;padding:10px 24px;font-family:'Share Tech Mono',monospace;font-weight:700;letter-spacing:.16em;border:none;cursor:pointer;font-size:12px;text-transform:uppercase;position:relative;box-shadow:3px 3px 0 #000}
+.start-btn:hover{box-shadow:3px 3px 0 #000, 5px 5px 0 #016dff}
+@media (hover:hover) and (pointer:fine){.stick,.btn-jump{display:none}}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">
+    <div class="crosshair"></div>
+    <div class="stats">FPS <span id="fps">--</span> / TRI <span id="tri">0</span></div>
+    <div class="title">${escapeHtml(title)}</div>
+    <div class="stick stick-l" id="stick-l"><div class="knob" id="knob-l"></div></div>
+    <div class="stick stick-r" id="stick-r"><div class="knob" id="knob-r"></div></div>
+    <button class="btn-jump" id="btn-jump">JUMP</button>
+</div>
+
+<div class="overlay" id="overlay">
+    <div class="overlay-card">
+        <h1>${escapeHtml(title)}</h1>
+        <p>// FPS_PLAYABLE // ANDROID_READY</p>
+        <ul>
+            <li><b>MOBILE:</b> LEFT_STICK = MOVE / RIGHT_STICK = LOOK / JUMP_BTN = JUMP</li>
+            <li><b>DESKTOP:</b> WASD = MOVE / MOUSE = LOOK / SPACE = JUMP</li>
+            <li><b>MODEL:</b> ${escapeHtml(title)}</li>
+        </ul>
+        <button class="start-btn" id="start">ENTER SCENE</button>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"><\/script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"><\/script>
+<script>
+/* ─── Config from exporter ─── */
+const CFG = {
+    playerHeight: ${pHeight},
+    moveSpeed:    ${pSpeed},
+    gravity:      ${gravity},
+    jumpV:        ${jumpV},
+    collision:    ${wantColl ? 'true' : 'false'},
+    shadows:      ${wantSh ? 'true' : 'false'},
+    fog:          ${wantFog ? 'true' : 'false'}
+};
+const GLTF_DATA = ${gltfStr};
+
+/* ─── Three setup ─── */
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, powerPreference:'high-performance' });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+if (CFG.shadows) { renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; }
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0b12);
+if (CFG.fog) scene.fog = new THREE.Fog(0x0b0b12, 12, 80);
+
+const camera = new THREE.PerspectiveCamera(72, window.innerWidth/window.innerHeight, 0.05, 500);
+camera.position.set(0, CFG.playerHeight, 6);
+
+/* ─── Lighting ─── */
+scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+const sun = new THREE.DirectionalLight(0xffffff, 0.95);
+sun.position.set(20, 40, 15);
+if (CFG.shadows) {
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(1024, 1024);
+    sun.shadow.camera.left=-30; sun.shadow.camera.right=30;
+    sun.shadow.camera.top=30;   sun.shadow.camera.bottom=-30;
+    sun.shadow.camera.near=1;   sun.shadow.camera.far=100;
+}
+scene.add(sun);
+const rim = new THREE.PointLight(0x016dff, 0.6, 40); rim.position.set(-10,6,-10); scene.add(rim);
+
+/* ─── Ground ─── */
+const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(400,400),
+    new THREE.MeshStandardMaterial({color:0x1a1a1a, roughness:0.95})
+);
+ground.rotation.x = -Math.PI/2;
+if (CFG.shadows) ground.receiveShadow = true;
+scene.add(ground);
+
+/* ─── Load scene ─── */
+const loader = new THREE.GLTFLoader();
+const worldGroup = new THREE.Group();
+scene.add(worldGroup);
+const colliders = [];
+
+const gltfBlob = new Blob([JSON.stringify(GLTF_DATA)], { type:'application/json' });
+const gltfUrl = URL.createObjectURL(gltfBlob);
+loader.load(gltfUrl, (gltf) => {
+    gltf.scene.traverse(n => {
+        if (n.isMesh) {
+            if (CFG.shadows) { n.castShadow = true; n.receiveShadow = true; }
+            if (CFG.collision) {
+                n.updateWorldMatrix(true, false);
+                const box = new THREE.Box3().setFromObject(n);
+                colliders.push(box);
+            }
+        }
+    });
+    worldGroup.add(gltf.scene);
+    URL.revokeObjectURL(gltfUrl);
+    // Move spawn OUT of the model bbox if needed
+    const worldBox = new THREE.Box3().setFromObject(worldGroup);
+    if (worldBox.containsPoint(new THREE.Vector3(camera.position.x, CFG.playerHeight, camera.position.z))) {
+        camera.position.set(worldBox.max.x + 3, CFG.playerHeight, worldBox.max.z + 3);
+    }
+    let tri = 0;
+    worldGroup.traverse(n => {
+        if (n.isMesh && n.geometry) {
+            tri += n.geometry.index ? n.geometry.index.count/3 : n.geometry.attributes.position.count/3;
+        }
+    });
+    document.getElementById('tri').textContent = Math.round(tri).toLocaleString();
+}, undefined, (err) => console.error('GLTF load error:', err));
+
+/* ─── Controls state ─── */
+const state = {
+    yaw:0, pitch:0,
+    vel: new THREE.Vector3(),
+    onGround:false,
+    moveX:0, moveZ:0,      // from left stick / WASD
+    lookX:0, lookY:0,      // continuous per-frame right stick
+    jumpQueued:false,
+    keys:{}
+};
+
+/* Player capsule bounds (AABB) — half sizes */
+const PLAYER = { r:0.35, h:CFG.playerHeight };
+
+/* ─── DESKTOP: pointer lock + WASD ─── */
+document.getElementById('start').onclick = () => {
+    document.getElementById('overlay').style.display = 'none';
+    if (!isTouch()) {
+        canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock;
+        canvas.requestPointerLock && canvas.requestPointerLock();
+    }
+    // Some Android browsers need a fullscreen gesture
+    if (isTouch() && document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(()=>{});
+    }
+};
+
+window.addEventListener('mousemove', (e) => {
+    if (document.pointerLockElement === canvas) {
+        state.yaw   -= e.movementX * 0.0025;
+        state.pitch -= e.movementY * 0.0025;
+        state.pitch = Math.max(-Math.PI/2+0.05, Math.min(Math.PI/2-0.05, state.pitch));
+    }
+});
+window.addEventListener('keydown', (e) => {
+    state.keys[e.code] = true;
+    if (e.code === 'Space') state.jumpQueued = true;
+});
+window.addEventListener('keyup',   (e) => { state.keys[e.code] = false; });
+
+/* ─── TOUCH: virtual joysticks + jump ─── */
+function isTouch(){ return ('ontouchstart' in window) || navigator.maxTouchPoints > 0; }
+
+function bindStick(padId, knobId, onMove){
+    const pad = document.getElementById(padId);
+    const knob = document.getElementById(knobId);
+    let active = null, cx = 0, cy = 0, R = 55;
+    pad.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        const t = e.changedTouches[0];
+        active = t.identifier;
+        const r = pad.getBoundingClientRect();
+        cx = r.left + r.width/2; cy = r.top + r.height/2;
+        moveKnob(t.clientX, t.clientY);
+    }, { passive:false });
+    pad.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        for (const t of e.changedTouches) if (t.identifier === active) moveKnob(t.clientX, t.clientY);
+    }, { passive:false });
+    const end = (e) => {
+        for (const t of e.changedTouches) if (t.identifier === active) {
+            active = null;
+            knob.style.transform = 'translate(-50%,-50%)';
+            onMove(0, 0);
+        }
+    };
+    pad.addEventListener('touchend', end);
+    pad.addEventListener('touchcancel', end);
+    function moveKnob(x, y){
+        let dx = x - cx, dy = y - cy;
+        const d = Math.hypot(dx, dy);
+        if (d > R) { dx = dx*R/d; dy = dy*R/d; }
+        knob.style.transform = 'translate(calc(-50% + '+dx+'px), calc(-50% + '+dy+'px))';
+        onMove(dx/R, dy/R);
+    }
+}
+bindStick('stick-l', 'knob-l', (x, y) => { state.moveX = x; state.moveZ = y; });
+bindStick('stick-r', 'knob-r', (x, y) => { state.lookX = x; state.lookY = y; });
+
+const jumpBtn = document.getElementById('btn-jump');
+const jumpFire = (e) => { e && e.preventDefault(); state.jumpQueued = true; };
+jumpBtn.addEventListener('touchstart', jumpFire, { passive:false });
+jumpBtn.addEventListener('mousedown',  jumpFire);
+
+/* ─── Collision (AABB sweep, axis-separated) ─── */
+function collides(pos){
+    if (!CFG.collision) return false;
+    const p = new THREE.Box3(
+        new THREE.Vector3(pos.x - PLAYER.r, pos.y - PLAYER.h, pos.z - PLAYER.r),
+        new THREE.Vector3(pos.x + PLAYER.r, pos.y,           pos.z + PLAYER.r)
+    );
+    for (let i=0;i<colliders.length;i++) if (colliders[i].intersectsBox(p)) return colliders[i];
+    return false;
+}
+function groundHeightAt(x, z){
+    if (!CFG.collision) return 0;
+    // Highest collider top under (x,z) below current head
+    let h = 0;
+    const px = x, pz = z;
+    for (let i=0;i<colliders.length;i++){
+        const b = colliders[i];
+        if (px >= b.min.x - PLAYER.r && px <= b.max.x + PLAYER.r &&
+            pz >= b.min.z - PLAYER.r && pz <= b.max.z + PLAYER.r) {
+            if (b.max.y > h && b.max.y < camera.position.y + 0.1) h = b.max.y;
+        }
+    }
+    return h;
+}
+
+/* ─── Loop ─── */
+let last = performance.now();
+let fpsAcc = 0, fpsFrames = 0, fpsT = 0;
+const fpsEl = document.getElementById('fps');
+
+function loop(now){
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+
+    /* Look (touch) */
+    state.yaw   -= state.lookX * dt * 2.6;
+    state.pitch -= state.lookY * dt * 2.2;
+    state.pitch = Math.max(-Math.PI/2+0.05, Math.min(Math.PI/2-0.05, state.pitch));
+
+    /* Keyboard move → moveX/moveZ */
+    let kx = 0, kz = 0;
+    if (state.keys['KeyW'] || state.keys['ArrowUp'])    kz -= 1;
+    if (state.keys['KeyS'] || state.keys['ArrowDown'])  kz += 1;
+    if (state.keys['KeyA'] || state.keys['ArrowLeft'])  kx -= 1;
+    if (state.keys['KeyD'] || state.keys['ArrowRight']) kx += 1;
+    const mx = kx !== 0 || kz !== 0 ? kx : state.moveX;
+    const mz = kx !== 0 || kz !== 0 ? kz : state.moveZ;
+
+    const fwd = new THREE.Vector3(-Math.sin(state.yaw), 0, -Math.cos(state.yaw));
+    const rgt = new THREE.Vector3( Math.cos(state.yaw), 0, -Math.sin(state.yaw));
+    const wish = new THREE.Vector3()
+        .addScaledVector(fwd, -mz)
+        .addScaledVector(rgt,  mx);
+    if (wish.lengthSq() > 1) wish.normalize();
+    wish.multiplyScalar(CFG.moveSpeed);
+
+    /* Vertical (gravity + jump) */
+    state.vel.y -= CFG.gravity * dt;
+    if (state.jumpQueued && state.onGround) {
+        state.vel.y = CFG.jumpV;
+        state.onGround = false;
+    }
+    state.jumpQueued = false;
+
+    /* Integrate w/ axis-separated collision */
+    const pos = camera.position.clone();
+
+    // X
+    let nx = pos.x + wish.x * dt;
+    if (!collides({ x:nx, y:pos.y, z:pos.z })) pos.x = nx;
+
+    // Z
+    let nz = pos.z + wish.z * dt;
+    if (!collides({ x:pos.x, y:pos.y, z:nz })) pos.z = nz;
+
+    // Y
+    let ny = pos.y + state.vel.y * dt;
+    // ground plane
+    const gh = groundHeightAt(pos.x, pos.z);
+    const floorY = Math.max(0, gh) + CFG.playerHeight;
+    if (ny <= floorY) { ny = floorY; state.vel.y = 0; state.onGround = true; }
+    else state.onGround = false;
+    // ceiling
+    if (CFG.collision && state.vel.y > 0) {
+        if (collides({ x:pos.x, y:ny, z:pos.z })) { ny = pos.y; state.vel.y = 0; }
+    }
+    pos.y = ny;
+
+    camera.position.copy(pos);
+
+    /* Apply orientation */
+    const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(state.pitch, state.yaw, 0, 'YXZ'));
+    camera.quaternion.copy(q);
+
+    /* FPS meter */
+    fpsFrames++; fpsT += dt;
+    if (fpsT >= 0.5) { fpsEl.textContent = Math.round(fpsFrames / fpsT); fpsFrames = 0; fpsT = 0; }
+
+    renderer.render(scene, camera);
+    requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+window.addEventListener('resize', () => {
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+});
+window.addEventListener('orientationchange', () => setTimeout(() => {
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+}, 250));
+
+/* Prevent iOS/Android scroll while playing */
+document.addEventListener('touchmove', e => e.preventDefault(), { passive:false });
+document.addEventListener('gesturestart', e => e.preventDefault());
+<\/script>
+</body>
+</html>`;
+}
+
+function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+}
+
+function onWindowResize() {
+    const viewport = document.getElementById('viewport-container');
+    camera.aspect = viewport.clientWidth / viewport.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(viewport.clientWidth, viewport.clientHeight);
+}
+
+function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
+}
+
+window.onload = init;
+</script>
+</body>
+</html>
