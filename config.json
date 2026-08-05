@@ -1,0 +1,5 @@
+{
+      "autoLoad": true,
+        "communication": true,
+          "moduleDirectory": "apps"
+}

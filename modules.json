@@ -1,0 +1,16 @@
+{
+  "modules": [
+    {
+      "name": "IDE",
+      "path": "apps/IDE/index.html"
+    },
+    {
+      "name": "GameEngine",
+      "path": "apps/GameEngine/index.html"
+    },
+    {
+      "name": "ModelViewer",
+      "path": "apps/ModelViewer/index.html"
+    }
+  ]
+}
